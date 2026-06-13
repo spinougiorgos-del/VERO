@@ -721,10 +721,15 @@
   </div>
 </div>
 
-<script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
 // ─── STATE ───
-let photos  = JSON.parse(localStorage.getItem('lumiere_photos')  || '[]');
-let folders = JSON.parse(localStorage.getItem('lumiere_folders') || '[]');
+  let photos = [];
+let folders = [];
+
+// Load data asynchronously on startup
+localforage.getItem('lumiere_photos').then(val => { photos = val || []; render(); });
+localforage.getItem('lumiere_folders').then(val => { folders = val || []; render(); });
+
 let activeFolder   = 'all';
 let pendingFiles   = [];
 let capturedImage  = null;
@@ -736,11 +741,13 @@ let facingMode     = 'user';
 let selEmoji       = '🖼';
 let currentView    = 'grid';
 
-const EMOJIS = ['🖼','🏖','🏔','🌸','🎉','🏠','🐾','✈️','🎵','🍃','🌅','🌃','🎨','🏃','❤️','⭐','🌍','🎭','📚','🍕'];
+const EMOJIS = ['🏖','🏔','🌸','🎉','🏠','🐾','✈️','🎵','🍃','🌅','🌃','🎨','🏃','❤️','⭐','🌍','🎭','📚','🍕'];
 
 function save() {
-  localStorage.setItem('lumiere_photos',  JSON.stringify(photos));
-  localStorage.setItem('lumiere_folders', JSON.stringify(folders));
+    localforage.setItem('lumiere_photos', photos);
+    localforage.setItem('lumiere_folders', folders);
+}
+
 }
 
 // ─── ICONS ───
