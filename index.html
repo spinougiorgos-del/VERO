@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Lumière — Photo Organizer</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  :root {
+    --bg:       #080808;
+    --surface:  #0f0f0f;
+    --card:     #141414;
+    --card2:    #1a1a1a;
+    --border:   rgba(212,175,55,0.12);
+    --border2:  rgba(255,255,255,0.05);
+    --gold:     #D4AF37;
+    --gold-lt:  #F2D675;
+    --gold-dk:  #A88820;
+    --gold-glow:rgba(212,175,55,0.18);
+    --gold-soft:rgba(212,175,55,0.08);
+    --white:    #F5F0E8;
+    --muted:    rgba(245,240,232,0.35);
+    --dim:      rgba(245,240,232,0.55);
+    --radius:   14px;
+    --radius-sm:9px;
+  }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--white);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ─── TOPBAR ─── */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    height: 64px;
+    background: rgba(8,8,8,0.97);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  
+  .topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .menu-toggle-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--gold);
+    width: 38px;
+    height: 38px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  .logo {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px;
+    font-weight: 300;
+    letter-spacing: 0.12em;
+    color: var(--white);
+    text-transform: lowercase;
+  }
+  .logo em { font-style: normal; color: var(--gold); }
+  .logo-dot { display: inline-block; width: 4px; height: 4px; border-radius: 50%; background: var(--gold); margin: 0 4px 2px; vertical-align: middle; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 16px; border-radius: 50px; border: none;
+    cursor: pointer; font-size: 12px; font-weight: 500;
+    transition: all 0.22s ease; letter-spacing: 0.05em;
+    font-family: 'Inter', sans-serif;
+  }
+  .btn-ghost { background: transparent; color: var(--dim); border: 1px solid var(--border); }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--gold) 0%, var(--gold-lt) 60%, var(--gold) 100%);
+    color: #080808; font-weight: 600;
+  }
+
+  /* ─── LAYOUT ─── */
+  .layout {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    height: calc(100vh - 64px);
+    position: relative;
+  }
+
+  /* ─── MOBILE SLIDE-OUT SIDEBAR ─── */
+  .sidebar {
+    position: fixed;
+    top: 64px;
+    left: -260px;
+    width: 260px;
+    height: calc(100vh - 64px);
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    z-index: 999;
+    transition: transform 0.3s ease;
+  }
+  
+  .sidebar.open {
+    transform: translateX(260px);
+  }
+
+  .sidebar-overlay {
+    position: fixed;
+    top: 64px;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(4px);
+    z-index: 998;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+  .sidebar-overlay.visible {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  .sidebar-section {
+    padding: 22px 18px 8px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    color: var(--gold);
+    text-transform: uppercase;
+    opacity: 0.7;
+  }
+
+  .folder-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    margin: 3px 10px;
+    transition: all 0.15s ease;
+    border: 1px solid transparent;
+  }
+  .folder-item:hover, .folder-item.active {
+    background: var(--gold-soft);
+    border-color: var(--border);
+  }
+  .folder-left { display: flex; align-items: center; gap: 10px; }
+  .f-svg { flex-shrink: 0; }
+  .folder-name { font-size: 14px; font-weight: 400; color: var(--white); }
+  .folder-item.active .folder-name { color: var(--gold); font-weight: 500; }
+  .folder-count {
+    font-size: 11px; color: var(--muted);
+    background: rgba(255,255,255,0.04);
+    padding: 2px 8px; border-radius: 20px;
+  }
+
+  .new-folder-btn {
+    display: flex; align-items: center; gap: 9px;
+    margin: 8px 12px; padding: 11px 14px; cursor: pointer;
+    border: 1px dashed rgba(212,175,55,0.2);
+    border-radius: var(--radius-sm); color: var(--muted);
+    font-size: 13px; background: transparent;
+    width: calc(100% - 24px); font-family: 'Inter', sans-serif;
+  }
+
+  .sidebar-bottom { margin-top: auto; padding: 20px 18px; border-top: 1px solid var(--border); }
+  .storage-bar-bg { height: 3px; background: rgba(255,255,255,0.06); border-radius: 10px; overflow: hidden; margin-bottom: 8px; }
+  .storage-bar-fill { height: 100%; background: linear-gradient(90deg, var(--gold-dk), var(--gold)); width: 0%; }
+  .storage-label { font-size: 11px; color: var(--muted); }
+
+  /* ─── MAIN CONTENT ─── */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    width: 100%;
+  }
+
+  .content-header {
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .content-title { font-family: 'Cormorant Garamond', serif; font-size: 24px; font-weight: 300; }
+  .content-title strong { font-weight: 600; color: var(--gold); }
+  .content-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .view-toggle { display: flex; gap: 4px; }
+  .view-btn {
+    width: 36px; height: 36px; border-radius: 8px;
+    border: 1px solid var(--border2); background: transparent;
+    color: var(--muted); display: flex; align-items: center; justify-content: center;
+  }
+  .view-btn.active { background: var(--gold-soft); color: var(--gold); border-color: var(--border); }
+
+  /* ─── PHOTO GRID ─── */
+  .photo-grid {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(105px, 1fr));
+    gap: 8px;
+    align-content: start;
+  }
+
+  .photo-card {
+    position: relative;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    border: 1px solid var(--border2);
+    aspect-ratio: 1;
+    background: var(--card);
+  }
+  .photo-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+  .photo-overlay {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: linear-gradient(transparent, rgba(0,0,0,0.9));
+    padding: 20px 8px 8px;
+  }
+  .photo-meta-date { font-size: 10px; color: var(--white); }
+  .photo-meta-place { font-size: 9px; color: var(--gold); }
+
+  /* ─── CAMERA FAB ─── */
+  .camera-fab {
+    position: fixed; bottom: 24px; right: 24px;
+    width: 56px; height: 56px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--gold-dk), var(--gold), var(--gold-lt));
+    color: #080808; border: none;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 16px rgba(212,175,55,0.4);
+    z-index: 200;
+  }
+
+  /* ─── TOAST ─── */
+  .toast {
+    position: fixed; bottom: 95px; left: 50%; transform: translateX(-50%) translateY(10px);
+    background: var(--card2); border: 1px solid var(--border);
+    border-radius: 50px; padding: 10px 20px; font-size: 12px;
+    color: var(--white); z-index: 500; opacity: 0; transition: all 0.2s;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast .t-dot { color: var(--gold); margin-right: 6px; }
+
+  /* ─── MODALS ─── */
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); z-index: 1000;
+    display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.2s;
+  }
+  .modal-backdrop.open { opacity: 1; pointer-events: all; }
+  .modal {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 24px; width: 92%; max-width: 400px;
+    position: relative;
+  }
+  .modal-title { font-family: 'Cormorant Garamond', serif; font-size: 20px; color: var(--white); margin-bottom: 4px; }
+  .modal-sub { font-size: 12px; color: var(--muted); margin-bottom: 18px; line-height: 1.5; }
+  .modal-close {
+    position: absolute; top: 14px; right: 14px; background: var(--card); border: 1px solid var(--border2);
+    color: var(--muted); width: 28px; height: 28px; border-radius: 50%; font-size: 16px;
+  }
+
+  .field-label { display: block; font-size: 9px; font-weight: 600; letter-spacing: 0.12em; color: var(--gold); margin-bottom: 6px; }
+  input.field, select.field {
+    width: 100%; background: var(--card); border: 1px solid var(--border2);
+    border-radius: var(--radius-sm); color: var(--white); padding: 12px; font-size: 14px; outline: none; margin-bottom: 16px;
+  }
+
+  .upload-zone {
+    border: 1px dashed rgba(212,175,55,0.25); border-radius: var(--radius);
+    padding: 24px 16px; text-align: center; position: relative; background: var(--card); margin-bottom: 16px;
+  }
+  .upload-zone input[type=file] { position: absolute; inset: 0; opacity: 0; }
+  .upload-zone-text { font-size: 12px; color: var(--muted); }
+
+  .preview-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+  .preview-thumb { width: 50px; height: 50px; border-radius: 6px; object-fit: cover; }
+
+  .camera-preview { width: 100%; aspect-ratio: 4/3; border-radius: var(--radius-sm); background: #000; overflow: hidden; margin-bottom: 14px; position: relative; border: 1px solid var(--border); }
+  .camera-preview video { width: 100%; height: 100%; object-fit: cover; }
+  .camera-preview canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: none; }
+  
+  .camera-controls { display: flex; align-items: center; justify-content: center; gap: 24px; margin-bottom: 8px; }
+  .shutter-btn { width: 54px; height: 54px; border-radius: 50%; border: 3px solid var(--gold); background: transparent; display: flex; align-items: center; justify-content: center; }
+  .shutter-inner { width: 36px; height: 36px; border-radius: 50%; background: var(--gold); }
+  .cam-side-btn { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border); background: var(--card); color: var(--muted); display: flex; align-items: center; justify-content: center; }
+
+  .viewer-modal { max-width: 100%; width: 100vw; height: 100vh; border-radius: 0; padding: 0; display: flex; flex-direction: column; justify-content: center; }
+  .viewer-img-wrap { width: 100%; flex: 1; background: #000; display: flex; align-items: center; justify-content: center; }
+  .viewer-img-wrap img { max-width: 100%; max-height: 70vh; object-fit: contain; }
+  .viewer-info { padding: 16px; }
+  .viewer-actions { display: flex; gap: 10px; padding: 12px 16px 24px; }
+
+  .emoji-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+  .emoji-opt { width: 38px; height: 38px; border-radius: 8px; border: 1px solid var(--border2); background: var(--card); display: flex; align-items: center; justify-content: center; font-size: 16px; }
+  .emoji-opt.selected { border-color: var(--gold); background: var(--gold-soft); }
+
+  .gold-line { height: 1px; background: linear-gradient(90deg, transparent, var(--gold), transparent); opacity: 0.25; }
+</style>
+</head>
+<body>
+
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <symbol id="ic-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></symbol>
+    <symbol id="ic-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></symbol>
+    <symbol id="ic-image" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></symbol>
+    <symbol id="ic-grid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></symbol>
+    <symbol id="ic-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1.2" fill="currentColor" stroke="none"/><circle cx="4" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="4" cy="18" r="1.2" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="ic-upload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></symbol>
+    <symbol id="ic-move" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="15 19 12 22 9 19"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></symbol>
+    <symbol id="ic-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></symbol>
+    <symbol id="ic-flip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.76"/></symbol>
+    <symbol id="ic-retake" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></symbol>
+    <symbol id="ic-cal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></symbol>
+    <symbol id="ic-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></symbol>
+    <symbol id="ic-all" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="9" height="9" rx="1.5"/><rect x="13" y="2" width="9" height="9" rx="1.5"/><rect x="2" y="13" width="9" height="9" rx="1.5"/><rect x="13" y="13" width="9" height="9" rx="1.5"/></symbol>
+    <symbol id="ic-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></symbol>
+  </defs>
+</svg>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <button class="menu-toggle-btn" onclick="toggleSidebar()" title="Open Folders">
+      <svg width="20" height="20"><use href="#ic-menu"/></svg>
+    </button>
+    <div class="logo">lu<em>mière</em><span class="logo-dot"></span></div>
+  </div>
+  <div>
+    <button class="btn btn-ghost" onclick="openUploadModal()">
+      <svg width="12" height="12"><use href="#ic-upload"/></svg> Add
+    </button>
+  </div>
+</div>
+
+<div class="layout">
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-section">Library</div>
+    <div class="folder-item active" onclick="selectFolder('all'); toggleSidebar();" id="folder-all">
+      <div class="folder-left">
+        <svg class="f-svg" width="16" height="16" style="color:var(--gold)"><use href="#ic-all"/></svg>
+        <span class="folder-name">All Photos</span>
+      </div>
+      <span class="folder-count" id="count-all">0</span>
+    </div>
+
+    <div class="sidebar-section" style="margin-top:10px;">Folders</div>
+    <div id="folder-list"></div>
+    
+    <button class="new-folder-btn" onclick="openNewFolderModal()">
+      <svg width="13" height="13" style="color:var(--gold);flex-shrink:0"><use href="#ic-folder"/></svg> New Folder
+    </button>
+
+    <div class="sidebar-bottom">
+      <div class="storage-bar-bg"><div class="storage-bar-fill" id="storage-bar"></div></div>
+      <div class="storage-label" id="storage-label">0 photos · local storage</div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="content-header">
+      <div>
+        <div class="content-title" id="content-title">All <strong>Photos</strong></div>
+        <div class="content-meta" id="content-meta">0 photos</div>
+      </div>
+      <div class="view-toggle">
+        <button class="view-btn active" id="grid-btn" onclick="setView('grid')">
+          <svg width="14" height="14"><use href="#ic-grid"/></svg>
+        </button>
+        <button class="view-btn" id="list-btn" onclick="setView('list')">
+          <svg width="14" height="14"><use href="#ic-list"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="gold-line"></div>
+    <div class="photo-grid" id="photo-grid"></div>
+  </div>
+</div>
+
+<button class="camera-fab" onclick="openCameraModal()">
+  <svg width="24" height="24" color="#080808"><use href="#ic-camera"/></svg>
+</button>
+
+<div class="toast" id="toast"></div>
+
+<div class="modal-backdrop" id="upload-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('upload-modal')">×</button>
+    <div class="modal-title">Add Photos</div>
+    <div class="modal-sub">Upload items directly into your library layout.</div>
+    <div class="upload-zone" id="upload-zone">
+      <input type="file" id="file-input" multiple accept="image/*" onchange="handleFiles(this.files)">
+      <div style="margin-bottom:8px;"><svg width="32" height="32" style="color:var(--gold)"><use href="#ic-upload"/></svg></div>
+      <div class="upload-zone-text"><strong>Tap to choose photos</strong></div>
+    </div>
+    <div class="preview-grid" id="preview-grid"></div>
+    <label class="field-label">Save to Folder</label>
+    <select class="field" id="upload-folder-select">
+      <option value="">— No folder (All Photos) —</option>
+    </select>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;padding:12px;" onclick="saveUploads()">Save Selected</button>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="folder-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('folder-modal')">×</button>
+    <div class="modal-title">New Folder</div>
+    <div class="modal-sub">Choose a title and character stamp for this folder.</div>
+    <label class="field-label">Folder Name</label>
+    <input type="text" class="field" id="folder-name-input" placeholder="e.g. Summer Travels">
+    <label class="field-label">Select Icon Stamp</label>
+    <div class="emoji-grid">
+      <div class="emoji-opt selected" onclick="pickEmoji(this,'💼')">💼</div>
+      <div class="emoji-opt" onclick="pickEmoji(this,'🌸')">🌸</div>
+      <div class="emoji-opt" onclick="pickEmoji(this,'✨')">✨</div>
+      <div class="emoji-opt" onclick="pickEmoji(this,'🌿')">🌿</div>
+      <div class="emoji-opt" onclick="pickEmoji(this,'🌊')">🌊</div>
+      <div class="emoji-opt" onclick="pickEmoji(this,'🍕')">🍕</div>
+      <div class="emoji-opt" onclick="pickEmoji(this,'🐾')">🐾</div>
+      <div class="emoji-opt" onclick="pickEmoji(this,'🎨')">🎨</div>
+    </div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;padding:12px;" onclick="createFolder()">Create</button>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="camera-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeCameraModal()">×</button>
+    <div class="modal-title">Lumière Lens</div>
+    <div class="modal-sub">Capture photos straight into your browser engine storage.</div>
+    <div class="camera-preview">
+      <video id="cam-video" autoplay playsinline muted></video>
+      <canvas id="cam-canvas"></canvas>
+      <div class="no-cam" id="cam-fallback" style="display:none;">
+        <svg width="32" height="32"><use href="#ic-nocam"/></svg>
+        <span>Camera Access Suspended</span>
+      </div>
+    </div>
+    <div class="camera-controls">
+      <button class="cam-side-btn" id="toggle-cam-btn" onclick="switchCamera()"><svg width="16" height="16"><use href="#ic-flip"/></svg></button>
+      <button class="shutter-btn" onclick="takeSnapshot()"><div class="shutter-inner"></div></button>
+      <button class="cam-side-btn" id="retake-btn" style="display:none;" onclick="resetCameraView()"><svg width="16" height="16"><use href="#ic-retake"/></svg></button>
+    </div>
+    <select class="field" id="camera-folder-select" style="margin-top:10px;">
+      <option value="">— Instant Album (All Photos) —</option>
+    </select>
+    <button class="btn btn-primary" id="cam-save-btn" style="width:100%;justify-content:center;display:none;padding:12px;" onclick="saveCameraPhoto()">Commit Photo</button>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="viewer-modal">
+  <div class="modal viewer-modal">
+    <button class="modal-close" style="top:16px;right:16px;z-index:10" onclick="closeModal('viewer-modal')">×</button>
+    <div class="viewer-img-wrap"><img id="viewer-img" src=""></div>
+    <div class="viewer-info">
+      <div class="viewer-info-name" id="viewer-filename">IMG_SOURCE.JPG</div>
+      <div class="viewer-tags">
+        <span class="viewer-tag"><svg width="12" height="12"><use href="#ic-cal"/></svg><span id="viewer-date">---</span></span>
+        <span class="viewer-tag"><svg width="12" height="12"><use href="#ic-pin"/></svg><span id="viewer-place">---</span></span>
+      </div>
+    </div>
+    <div class="viewer-actions">
+      <button class="btn btn-ghost" style="flex:1;justify-content:center;" onclick="openMoveModal()"><svg width="13" height="13"><use href="#ic-move"/></svg> Categorise</button>
+      <button class="btn btn-ghost" style="flex:1;justify-content:center;border-color:rgba(255,0,0,0.2);color:#ff6b6b;" onclick="deleteCurrentPhoto()"><svg width="13" height="13"><use href="#ic-trash"/></svg> Wipe</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="move-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('move-modal')">×</button>
+    <div class="modal-title">Re-route File</div>
+    <div class="modal-sub">Select the destination folder profile for this item.</div>
+    <div class="folder-pick-list" id="move-folder-list"></div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;padding:12px;" onclick="executeMove()">Apply Route</button>
+  </div>
+</div>
+
+<script>
+  let DB = { photos: [], folders: [] };
+  let currentFolder = 'all';
+  let viewMode = 'grid';
+  let activeUploads = [];
+  let currentViewerPhotoId = null;
+  let chosenEmoji = '💼';
+  let videoStream = null;
+  let useFrontCamera = false;
+
+  function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('sidebar-overlay').classList.toggle('visible');
+  }
+
+  function initStorage() {
+    try {
+      const stored = localStorage.getItem('lumiere_db');
+      if (stored) {
+        DB = JSON.parse(stored);
+      } else {
+        DB = { photos: [], folders: [
+          { id: 'f1', name: 'Portraits', icon: '🌸' },
+          { id: 'f2', name: 'Scenery', icon: '🌊' }
+        ]};
+        saveDB();
+      }
+    } catch {
+      showToast("Storage initialization skipped.");
+    }
+    renderAll();
+  }
+
+  function saveDB() {
+    try { localStorage.setItem('lumiere_db', JSON.stringify(DB)); } catch { showToast("Local quota full!"); }
+  }
+
+  function renderAll() {
+    renderFolders();
+    renderPhotos();
+    updateDropdowns();
+    updateStorageMetrics();
+  }
+
+  function renderFolders() {
+    const list = document.getElementById('folder-list');
+    list.innerHTML = '';
+    DB.folders.forEach(f => {
+      const count = DB.photos.filter(p => p.folderId === f.id).length;
+      const act = (currentFolder === f.id) ? 'active' : '';
+      list.innerHTML += `
+        <div class="folder-item ${act}" onclick="selectFolder('${f.id}'); toggleSidebar();" id="folder-${f.id}">
+          <div class="folder-left">
+            <span style="font-size:15px;margin-right:2px;">${f.icon}</span>
+            <span class="folder-name">${esc(f.name)}</span>
+          </div>
+          <span class="folder-count">${count}</span>
+        </div>`;
+    });
+    const allCount = DB.photos.length;
+    document.getElementById('count-all').innerText = allCount;
+    if(currentFolder === 'all') document.getElementById('folder-all').classList.add('active');
+    else document.getElementById('folder-all').classList.remove('active');
+  }
+
+  function selectFolder(id) {
+    currentFolder = id;
+    renderAll();
+  }
+
+  function renderPhotos() {
+    const grid = document.getElementById('photo-grid');
+    grid.innerHTML = '';
+    
+    let filtered = (currentFolder === 'all') ? DB.photos : DB.photos.filter(p => p.folderId === currentFolder);
+    
+    const titleEl = document.getElementById('content-title');
+    const metaEl = document.getElementById('content-meta');
+    
+    if (currentFolder === 'all') {
+      titleEl.innerHTML = `All <strong>Photos</strong>`;
+    } else {
+      const f = DB.folders.find(x => x.id === currentFolder);
+      titleEl.innerHTML = f ? `${f.icon} <strong>${esc(f.name)}</strong>` : `Collection`;
+    }
+    metaEl.innerText = `${filtered.length} photos sorted`;
+
+    if (filtered.length === 0) {
+      grid.className = "main";
+      grid.innerHTML = `
+        <div class="empty-state" style="padding: 60px 20px; text-align: center; color: var(--muted);">
+          <div style="font-size: 32px; margin-bottom: 10px;">📸</div>
+          <div style="font-size: 16px; color: var(--white); font-weight: 500;">No Photos Yet</div>
+          <div style="font-size: 12px; margin-top: 4px;">Tap the shutter button or upload files to start.</div>
+        </div>`;
+      return;
+    }
+
+    grid.className = "photo-grid";
+    if (viewMode === 'grid') {
+      grid.style.gridTemplateColumns = "repeat(auto-fill, minmax(105px, 1fr))";
+    } else {
+      grid.style.gridTemplateColumns = "1fr";
+    }
+
+    filtered.forEach(p => {
+      grid.innerHTML += `
+        <div class="photo-card" onclick="openViewer('${p.id}')">
+          <img src="${p.src}" alt="photo">
+          <div class="photo-overlay">
+            <div class="photo-meta-date">${fmtDate(new Date(p.timestamp))}</div>
+            <div class="photo-meta-place">${esc(p.location)}</div>
+          </div>
+        </div>`;
+    });
+  }
+
+  function updateDropdowns() {
+    const ups = document.getElementById('upload-folder-select');
+    const cams = document.getElementById('camera-folder-select');
+    let opts = `<option value="">— No folder (All Photos) —</option>`;
+    DB.folders.forEach(f => { opts += `<option value="${f.id}">${f.icon} ${esc(f.name)}</option>`; });
+    if(ups) ups.innerHTML = opts;
+    if(cams) cams.innerHTML = opts;
+  }
+
+  function updateStorageMetrics() {
+    const total = DB.photos.length;
+    document.getElementById('storage-label').innerText = `${total} items saved`;
+    const pct = Math.min((total / 50) * 100, 100);
+    document.getElementById('storage-bar').style.width = pct + '%';
+  }
+
+  function openUploadModal() { activeUploads = []; document.getElementById('preview-grid').innerHTML = ''; openModal('upload-modal'); }
+  function openNewFolderModal() { document.getElementById('folder-name-input').value = ''; openModal('folder-modal'); }
+
+  function openModal(id) { document.getElementById(id).classList.add('open'); }
+  function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+  function pickEmoji(el, emo) {
+    document.querySelectorAll('.emoji-opt').forEach(x => x.classList.remove('selected'));
+    el.classList.add('selected');
+    chosenEmoji = emo;
+  }
+
+  function createFolder() {
+    const name = document.getElementById('folder-name-input').value.trim();
+    if(!name) return;
+    const newF = { id: 'f_' + Date.now(), name: name, icon: chosenEmoji };
+    DB.folders.push(newF);
+    saveDB();
+    closeModal('folder-modal');
+    renderAll();
+    showToast("Folder profile logged");
+  }
+
+  function handleFiles(files) {
+    for(let i=0; i<files.length; i++) {
+      const f = files[i];
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        activeUploads.push({ src: e.target.result, name: f.name });
+        const pGrid = document.getElementById('preview-grid');
+        pGrid.innerHTML += `<img class="preview-thumb" src="${e.target.result}">`;
+      };
+      reader.readAsDataURL(f);
+    }
+  }
+
+  async function saveUploads() {
+    if(activeUploads.length === 0) return;
+    const fId = document.getElementById('upload-folder-select').value;
+    const loc = await getLocation();
+    activeUploads.forEach(up => {
+      DB.photos.unshift({ id: 'p_' + Math.random().toString(36).substr(2,9), src: up.src, folderId: fId, timestamp: Date.now(), location: loc });
+    });
+    saveDB();
+    closeModal('upload-modal');
+    renderAll();
+    showToast(`Injected ${activeUploads.length} snaps`);
+  }
+
+  function setView(m) {
+    viewMode = m;
+    document.getElementById('grid-btn').classList.toggle('active', m === 'grid');
+    document.getElementById('list-btn').classList.toggle('active', m === 'list');
+    renderPhotos();
+  }
+
+  function openViewer(id) {
+    const p = DB.photos.find(x => x.id === id);
+    if(!p) return;
+    currentViewerPhotoId = id;
+    document.getElementById('viewer-img').src = p.src;
+    document.getElementById('viewer-filename').innerText = `IMG_${id.toUpperCase()}.JPG`;
+    document.getElementById('viewer-date').innerText = fmtDate(new Date(p.timestamp));
+    document.getElementById('viewer-place').innerText = p.location || "Unknown Coordinate";
+    openModal('viewer-modal');
+  }
+
+  function deleteCurrentPhoto() {
+    if(!currentViewerPhotoId) return;
+    DB.photos = DB.photos.filter(x => x.id !== currentViewerPhotoId);
+    saveDB();
+    closeModal('viewer-modal');
+    renderAll();
+    showToast("File purged from storage");
+  }
+
+  let selectedMoveFolder = null;
+  function openMoveModal() {
+    closeModal('viewer-modal');
+    const list = document.getElementById('move-folder-list');
+    list.innerHTML = `
+      <div class="folder-pick-item" onclick="selectMoveFolder(this, '')" style="padding:10px; border-bottom:1px solid var(--border2); color:var(--white);">
+        <span>📦 Unassigned Library</span>
+      </div>`;
+    DB.folders.forEach(f => {
+      list.innerHTML += `
+        <div class="folder-pick-item" onclick="selectMoveFolder(this, '${f.id}')" style="padding:10px; border-bottom:1px solid var(--border2); color:var(--white);">
+          <span>${f.icon} ${esc(f.name)}</span>
+        </div>`;
+    });
+    openModal('move-modal');
+  }
+
+  function selectMoveFolder(el, fId) {
+    document.querySelectorAll('.folder-pick-item').forEach(x => x.style.background = 'transparent');
+    el.style.background = 'var(--gold-soft)';
+    selectedMoveFolder = fId;
+  }
+
+  function executeMove() {
+    const p = DB.photos.find(x => x.id === currentViewerPhotoId);
+    if(p) {
+      p.folderId = selectedMoveFolder;
+      saveDB();
+      renderAll();
+      showToast("Item partition updated");
+    }
+    closeModal('move-modal');
+  }
+
+  async function openCameraModal() {
+    openModal('camera-modal');
+    document.getElementById('cam-video').style.display = 'block';
+    document.getElementById('cam-canvas').style.display = 'none';
+    document.getElementById('cam-save-btn').style.display = 'none';
+    document.getElementById('retake-btn').style.display = 'none';
+    await startCamera();
+  }
+
+  async function startCamera() {
+    if (videoStream) { videoStream.getTracks().forEach(t => t.stop()); }
+    const constraints = { video: { facingMode: useFrontCamera ? "user" : "environment" }, audio: false };
+    try {
+      videoStream = await navigator.mediaDevices.getUserMedia(constraints);
+      const video = document.getElementById('cam-video');
+      video.srcObject = videoStream;
+      document.getElementById('cam-fallback').style.display = 'none';
+    } catch {
+      document.getElementById('cam-fallback').style.display = 'flex';
+      document.getElementById('cam-video').style.display = 'none';
+    }
+  }
+
+  function switchCamera() {
+    useFrontCamera = !useFrontCamera;
+    startCamera();
+  }
+
+  function takeSnapshot() {
+    const video = document.getElementById('cam-video');
+    const canvas = document.getElementById('cam-canvas');
+    if (!videoStream || video.style.display === 'none') return;
+    
+    const ctx = canvas.getContext('2d');
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    video.style.display = 'none';
+    canvas.style.display = 'block';
+    document.getElementById('cam-save-btn').style.display = 'block';
+    document.getElementById('retake-btn').style.display = 'flex';
+  }
+
+  function resetCameraView() {
+    document.getElementById('cam-video').style.display = 'block';
+    document.getElementById('cam-canvas').style.display = 'none';
+    document.getElementById('cam-save-btn').style.display = 'none';
+    document.getElementById('retake-btn').style.display = 'none';
+  }
+
+  async function saveCameraPhoto() {
+    const canvas = document.getElementById('cam-canvas');
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    const fId = document.getElementById('camera-folder-select').value;
+    const loc = await getLocation();
+    
+    DB.photos.unshift({ id: 'p_' + Math.random().toString(36).substr(2,9), src: dataUrl, folderId: fId, timestamp: Date.now(), location: loc });
+    saveDB();
+    closeCameraModal();
+    renderAll();
+    showToast("Snapshot logged into profile");
+  }
+
+  function closeCameraModal() {
+    if (videoStream) { videoStream.getTracks().forEach(t => t.stop()); videoStream = null; }
+    closeModal('camera-modal');
+  }
+
+  async function getLocation() {
+    return new Promise(res => {
+      if (!navigator.geolocation) { res('Unknown location'); return; }
+      navigator.geolocation.getCurrentPosition(async pos => {
+        try {
+          const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&format=json`);
+          const d = await r.json();
+          const city    = d.address.city || d.address.town || d.address.village || d.address.county || '';
+          const country = d.address.country || '';
+          res([city, country].filter(Boolean).join(', ') || 'Unknown location');
+        } catch { res('Unknown location'); }
+      }, () => res('Unknown location'), { timeout: 4000 });
+    });
+  }
+
+  function fmtDate(d) { return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }); }
+  function esc(s) { if (!s) return ''; return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  let toastT;
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.innerHTML = `<span class="t-dot">◆</span>${msg}`;
+    t.classList.add('show');
+    clearTimeout(toastT);
+    toastT = setTimeout(() => t.classList.remove('show'), 2500);
+  }
+
+  window.onload = initStorage;
+</script>
+</body>
+</html>
